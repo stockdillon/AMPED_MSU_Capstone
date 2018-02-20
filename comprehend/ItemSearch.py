@@ -32,8 +32,12 @@ class ItemSearch(object):
         self.naive_parse()
         items = []
         for kw in self.keywords:
-            res_items = self.client.search_n(kw.text,self.category,1)
-            items.append(kw_item_pair(kw.text,res_items))
+            try:
+                res_items = self.client.search_n(kw.text,self.category,1)
+                items.append(kw_item_pair(kw.text,res_items))
+            except:
+                pass
+
 
         return items
         

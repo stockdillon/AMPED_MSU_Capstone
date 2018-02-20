@@ -16,9 +16,10 @@ class Processor(object):
 
         Returns: list of amazon item objects
         """
+        textChunk = text[:5000]
         c = comprehender.Comprehender()
-        kp = c.comprehend_key_phrases(text)
-        ent = c.comprehend_entities(text)
+        kp = c.comprehend_key_phrases(textChunk)
+        ent = c.comprehend_entities(textChunk)
         item_searcher = ItemSearch.ItemSearch(category,ent,kp)
         return item_searcher.search()
 
