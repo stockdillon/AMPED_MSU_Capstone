@@ -15,7 +15,6 @@ def lambda_handler(event, context):
 	jobNames = Get_Completed_Jobs_Not_Comprehended(transcribe_client)
 	for jobName in jobNames:
 		items = GetItemSet(jobName,transcribe_client)
-		print("Job Name: ", jobName, "Items: ", items)
 		assert items, "No items were returned"
 		result = PostItemSet(items, jobName)
 
@@ -84,6 +83,7 @@ def PostItemSet(kw_items_pairs, jobName):
 				itemData['url'] = str(item.offer_url)
 				itemData['image_url'] = str(item.images[0].LargeImage.URL)
 				itemData['description'] = str(item.editorial_review)
+				itemData['images'] = list(set(map(lambda _: str(_.LargeImage.URL), item.images)))
 			except:
 				pass
 			newItemSet[kw_items.keyword].append(itemData)
