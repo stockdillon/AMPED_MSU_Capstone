@@ -6,12 +6,14 @@ from amazon.api import AmazonAPI
 class AWSClient(object):
     """
     """
-    def __init__(self,region=None,access_key=None,secret_access_key=None,tag=None):
+    def __init__(self,region=None,root_access_key='AKIAJB4BJYPJKV5YACXQ',
+                                  root_secret_access_key='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',tag=None):
+
         self.region = 'us-east-1'
-        self.root_access_key = 'AKIAJB4BJYPJKV5YACXQ'
-        self.root_secret_access_key = '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'
-        self.search_access_key = 'AKIAIS2HFIM7UBM2H5CA'
-        self.search_secret_access_key = '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'
+        self.root_access_key = root_access_key
+        self.root_secret_access_key = root_secret_access_key
+        self.search_access_key = 'AKIAIS2HFIM7UBM2H5CA' #affiliate key
+        self.search_secret_access_key = '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' #affiliate key
         self.associate_tag = "msucapstone0a-20"
         self.create_comprehend_client()
         self.create_search_client()

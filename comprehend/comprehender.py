@@ -6,10 +6,10 @@ class Comprehender(object):
     parses response data into:
     
     """
-    def __init__(self,text=None,client=None,deserializer=None):
+    def __init__(self,text=None,client=aws.AWSClient(),deserializer=None):
         self.text = text
         self.entities = None
-        self.client = aws.AWSClient()
+        self.client = client
         self.deserializer = ds.Deserializer()
 
     def comprehend_entities(self,text):

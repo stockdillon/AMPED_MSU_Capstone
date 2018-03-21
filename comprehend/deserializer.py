@@ -52,10 +52,11 @@ class ComprehendEntity(ComprehendTextResponse):
         self.end_offset = end_offset
         self.type = _type
         self.score = score
+        self.timestamps = []
 
     def __repr__(self):
-        return ('Comprehend Entity: Type:  {}  Text: {}  Score:  {}   BeginOffset:  {}  EndOffset:  {}'.format(
-            self.type,self.text,self.score,self.begin_offset,self.end_offset))
+        return ('Comprehend Entity: Type:  {}  Text: {}  Score:  {}   BeginOffset:  {}  EndOffset:  {} Timestamps:  {}'.format(
+            self.type,self.text,self.score,self.begin_offset,self.end_offset,self.timestamps))
         
     class EntityType(enum.Enum):
         """
