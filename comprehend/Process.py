@@ -26,8 +26,8 @@ class Processor(object):
             pprint("word dict: {}".format(word_dict))
             timestamp_mappings.setdefault(word_dict['alternatives'][0]['content'], []).append(word_dict['start_time'])
         pprint("Timestamp mappings from Transcribe result: {}".format(timestamp_mappings))
-        pprint("items before timestamp extraction: ")
-        pprint(items)
+        #pprint("items before timestamp extraction: ")
+        #pprint(items)
         pprint("-----------------------------------")
         for item in items:
             keyword = item.keyword.strip().split()[0] #This is only pulling the FIRST word in the keywords used

@@ -5,6 +5,7 @@ import json
 import Process
 import aws_wrapper as aws
 import requests
+from pprint import pprint
 
 class LambdaUtils(object):
     """
@@ -56,7 +57,9 @@ class LambdaUtils(object):
             newItemSet = {}
             for kw_items in kw_items_pairs:
 
-                newItemSet[kw_items.keyword] = []
+                newItemSet[kw_items.keyword] = {}
+                newItemSet[kw_items.keyword]["items"] = []
+                newItemSet[kw_items.keyword]["timestamps"] = kw_items.timestamps
 
                 for i, item in enumerate(kw_items.items):
                     if i > 5:
@@ -72,15 +75,16 @@ class LambdaUtils(object):
                         itemData['image_url'] = str(item.images[0].LargeImage.URL)
                         itemData['description'] = str(item.editorial_review)
                         itemData['images'] = list(set(map(lambda _: str(_.LargeImage.URL), item.images)))
-                        itemData['timestamps'] = kw_items.timestamps
+                        #itemData['timestamps'] = kw_items.timestamps
                     except:
                         pass
-                    newItemSet[kw_items.keyword].append(itemData)
+                    newItemSet[kw_items.keyword]["items"].append(itemData)
 
 
             payload = {"products" : json.dumps(newItemSet), "step": "FINISHED"}
 
-            print("Payload: ", payload)
+            pprint("Payload: ")
+            pprint(payload)
 
             #headers = {"Authorization":"Token 764aab954fdc86cadb3b4cbd2b9f6f48339e6566"}
             result = requests.put("http://api.amped.cc/api/jobs/" + jobName + "/", data=payload, headers=self.api_auth)
