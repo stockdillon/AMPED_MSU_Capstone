@@ -12,9 +12,9 @@ class AWSClient(object):
         self.region = 'us-east-1'
         self.root_access_key = root_access_key
         self.root_secret_access_key = root_secret_access_key
-        self.search_access_key = 'AKIAIS2HFIM7UBM2H5CA' #affiliate key
-        self.search_secret_access_key = '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' #affiliate key
-        self.associate_tag = "msucapstone0a-20"
+        self.search_access_key = 'AKIAIMJ3KXAGVLAEFBNA' #affiliate key
+        self.search_secret_access_key = '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' #affiliate key
+        self.associate_tag = "msucapstone02-20"
         self.create_comprehend_client()
         self.create_search_client()
         self.create_transcribe_client()

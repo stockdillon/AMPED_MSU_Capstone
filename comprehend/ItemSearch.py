@@ -13,9 +13,7 @@ class ItemSearch(object):
         """
         """
         keywords = []
-        comm_products = self.entities['COMMERCIAL_ITEM']
-        for i in comm_products:
-            keywords.append(i)
+
         for kp in self.key_phrases:
             if kp.count >= count_threshold:
                 keywords.append(kp)
@@ -28,13 +26,13 @@ class ItemSearch(object):
         """
         todo: naive search
         """
-        kw_item_pair = namedtuple('KeywordItemsMapping',['keyword','items'])
+        kw_item_pair = namedtuple('KeywordItemsMapping',['keyword','items','timestamps'])
         self.naive_parse()
         items = []
         for kw in self.keywords:
             try:
                 res_items = self.client.search_n(kw.text,self.category,1)
-                items.append(kw_item_pair(kw.text,res_items))
+                items.append(kw_item_pair(kw.text,res_items,[]))
             except:
                 pass
 

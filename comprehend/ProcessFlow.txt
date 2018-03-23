@@ -1,0 +1,10 @@
+
+Flow:
+
+User uploads file to front end. 
+File is put into S3 Bucket.
+API Gateway gets the S3 bucket information and creates a job in the database.
+
+(Cron job scraping CloudWatch event triggers Comprehend Lambda
+Comprehend Lambda pulls job names (of currently transcribing jobs) from API
+Comprehend checks the status of these jobs on AWS console, and extracts all jobs which have a COMPLETED status

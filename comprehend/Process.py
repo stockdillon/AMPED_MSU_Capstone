@@ -1,6 +1,7 @@
 import comprehender
 import ItemSearch
 from pprint import pprint
+import itertools
 
 class Processor(object):
     """
@@ -9,41 +10,60 @@ class Processor(object):
     def __init__(self,client=None):
         self.client = client
 
-    def extract_timestamps(self,key_phrase_object_dict,transcribe_items):
+    def extract_timestamps(self,transcribe_dicts,items):
         """
-        Takes in the searched items and returns the timestamps associated with each item
-        """
-        pprint("key_phrase_object_dict before timestamp extraction: ")
-        pprint(key_phrase_object_dict)
-        pprint("-----------------------------------")
-        for entity_type in key_phrase_object_dict:
-            #entities = key_phrase_object_dict[entity_type]
-            for obj in key_phrase_object_dict[entity_type]:
-                keyword = obj.text
-                print("Looking for keyword: ", keyword)
-                for item in transcribe_items:
-                    word_from_transcribe_text = item['alternatives'][0]['content']
-                    #print("Comparing against: ", word_from_transcribe_text)                  
-                    if word_from_transcribe_text == keyword:
-                        timestamp = item['start_time']
-                        print("Found timestamp (" + timestamp + ") for keyword: " + keyword)
-                        obj.timestamps.append(timestamp)
-        pprint("key_phrase_object_dict after timestamp extraction: ")
-        pprint(key_phrase_object_dict)
-        
+        Takes in a list of dictionaries returned from Transcribe,
+        each containing information about a single word within the transcript.
+        Also takes in a list of named tuples which contain: keyphrase, items returned using this keyphrase, and an empty list for the timestamps mapped to this particular keyphrase.
 
-    def process(self,category,text,transcribe_JSON):
+        Maps each keyphrase to a list of timestamps by iterating over the list of dictionaries,
+        then updates each named tuple with the appropriate timestamp mappings.
+        """
+        timestamp_mappings = {}
+        for word_dict in transcribe_dicts:
+            if word_dict['type'] == "punctuation":
+                continue
+            pprint("word dict: {}".format(word_dict))
+            timestamp_mappings.setdefault(word_dict['alternatives'][0]['content'], []).append(word_dict['start_time'])
+        pprint("Timestamp mappings from Transcribe result: {}".format(timestamp_mappings))
+        pprint("items before timestamp extraction: ")
+        pprint(items)
+        pprint("-----------------------------------")
+        for item in items:
+            keyword = item.keyword.strip().split()[0] #This is only pulling the FIRST word in the keywords used
+            print("Looking for keyword: ", keyword)
+            if keyword in timestamp_mappings:
+                item.timestamps.extend(timestamp_mappings[keyword])
+                    
+        pprint("items after timestamp extraction: ")
+        pprint(items)
+        return
+
+    def process(self,category,text):
         """takes in podcast text and pipelines it through the 
             comprehend module and the item searcher, returning
             a list of items
 
         Returns: list of amazon item objects
         """
-        textChunk = text[:5000]
+        n = 4998
+        chunks = [text[i:i+n] for i in range(0, len(text), n)]
         c = comprehender.Comprehender()
-        kp = c.comprehend_key_phrases(textChunk)
-        ent = c.comprehend_entities(textChunk)
-        self.extract_timestamps(ent, transcribe_JSON['results']['items'])
+        """
+        kp = []
+        ent = []
+        for chunk in chunks:
+            kp += c.comprehend_key_phrases(chunk)
+            ent += c.comprehend_entities(chunk)
+        else:
+            ent = dict.fromkeys(ent, list())
+        """
+
+
+        kp = list(itertools.chain.from_iterable([c.comprehend_key_phrases(chunk) for chunk in chunks]))
+        ent = list(itertools.chain.from_iterable([c.comprehend_entities(chunk) for chunk in chunks]))
+        ent = dict.fromkeys(ent, list())
+
         item_searcher = ItemSearch.ItemSearch(category,ent,kp)
         return item_searcher.search()
 
