@@ -16,7 +16,10 @@ class ItemWebData(object):
         self.reviews_url = None
         self.rating = 0.0
         self.review_count = 0
-        self.sales_rank = self.parsed_response.SalesRank
+        try:
+            self.sales_rank = int(self.parsed_response.SalesRank)
+        except:
+            self.sales_rank = None
         self.is_adult = item.is_adult
         self.availability = item.availability_type
         
@@ -24,7 +27,9 @@ class ItemWebData(object):
         if self.has_reviews:
             self.reviews_url = self.parsed_response.CustomerReviews['IFrameURL']
             response = requests.get(self.reviews_url)
-            assert response.ok, "BAD REQUEST while getting rating for product"
+            if not response.ok:
+                return False
+            #assert response.ok, "BAD REQUEST while getting rating for product"
             soup = BeautifulSoup(response.content, 'html.parser')
             self.rating = self.get_rating(soup)
             self.review_count = self.get_review_count(soup)
@@ -61,7 +66,9 @@ class ItemWebData(object):
             'reviews_url': self.reviews_url,
             'rating': self.rating,
             'review_count': self.review_count,
-            'sales_rank': self.sales_rank
+            'sales_rank': self.sales_rank,
+            'is_adult': self.is_adult,
+            'availability': self.availability
         }
     
     @property

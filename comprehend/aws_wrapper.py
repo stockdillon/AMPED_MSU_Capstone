@@ -64,7 +64,12 @@ class AWSClient(object):
         return response
 
     def comprehend_sentiment(self,text_input):
-        pass
+        response = self.comprehend_client.detect_sentiment(
+            Text=text_input,
+            LanguageCode='en'
+        )
+        
+        return response
 
     def search_n(self, keywords, index,n):
         return self.search_client.search_n(n, Keywords=keywords, SearchIndex=index)

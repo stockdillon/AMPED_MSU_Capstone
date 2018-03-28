@@ -13,7 +13,7 @@ class Processor(object):
     def extract_timestamps(self,transcribe_dicts,items):
         """
         Takes in a list of dictionaries returned from Transcribe,
-        each containing information about a single word within the transcript.
+        each containing meta data about a single word within the transcript.
         Also takes in a list of named tuples which contain: keyphrase, items returned using this keyphrase, and an empty list for the timestamps mapped to this particular keyphrase.
 
         Maps each keyphrase to a list of timestamps by iterating over the list of dictionaries,
@@ -30,7 +30,7 @@ class Processor(object):
         #pprint(items)
         pprint("-----------------------------------")
         for item in items:
-            keyword = item.keyword.strip().split()[0] #This is only pulling the FIRST word in the keywords used
+            keyword = item.keyword.strip().split()[0] #TODO This is only pulling the FIRST word in the keywords used
             print("Looking for keyword: ", keyword)
             if keyword in timestamp_mappings:
                 item.timestamps.extend(timestamp_mappings[keyword])
@@ -46,22 +46,16 @@ class Processor(object):
 
         Returns: list of amazon item objects
         """
-        n = 4998
+        n = 500
         chunks = [text[i:i+n] for i in range(0, len(text), n)]
+        #pprint(text)
+        #chunks = text.split('.')
+        pprint(chunks)
         c = comprehender.Comprehender()
-        """
-        kp = []
-        ent = []
-        for chunk in chunks:
-            kp += c.comprehend_key_phrases(chunk)
-            ent += c.comprehend_entities(chunk)
-        else:
-            ent = dict.fromkeys(ent, list())
-        """
-
 
         kp = list(itertools.chain.from_iterable([c.comprehend_key_phrases(chunk) for chunk in chunks]))
         ent = list(itertools.chain.from_iterable([c.comprehend_entities(chunk) for chunk in chunks]))
+        print("Entities: {}".format(ent))
         ent = dict.fromkeys(ent, list())
 
         item_searcher = ItemSearch.ItemSearch(category,ent,kp)

@@ -20,10 +20,36 @@ class Comprehender(object):
         return self.entities
 
     def comprehend_key_phrases(self,text):
+        """  
+        sentiment_object = self.client.comprehend_sentiment(text)
+        if sentiment_object['Sentiment'] == "NEGATIVE":
+            print("{} has a negative sentiment\n\n\n\n".format(text))
+            return 
+        else:
+            print("{} has a positive or neutral sentiment\n\n\n\n".format(text))
+        """
         response = self.client.comprehend_key_phrases(text)
         self.key_phrases = self.deserializer.deserialize_key_phrases(response['KeyPhrases'])
         return self.key_phrases
 
-
-    def comprehend_sentiment(self):
-        pass
+"""
+    def comprehend_sentiment(self, transcribe_word_items):
+        sentence = ""
+        for word_item in transcribe_word_items:
+            current_word = word_item['alternatives'][0]['content']
+            if word_item['type'] == 'punctuation':
+                if current_word == '.':
+                    sentence = sentence.strip() + '.'
+                    sentiment_obj = comprehend_client.detect_sentiment(
+                        Text=sentence,
+                        LanguageCode='en'
+                    )
+                    sentiment = sentiment_obj['Sentiment']
+                    sentence = ""
+                    continue
+                else:
+                    sentence = sentence.strip() + current_word + ' '
+                    continue
+            sentence += current_word + ' '
+        return
+"""

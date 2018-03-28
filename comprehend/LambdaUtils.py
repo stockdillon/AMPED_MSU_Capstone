@@ -5,7 +5,13 @@ import json
 import Process
 import aws_wrapper as aws
 import requests
+import itertools
+import ItemWrapper
 from pprint import pprint
+
+JOBS_ENDPOINT = "http://api.amped.cc/api/jobs/"
+TRANSCRIBE_JOBS_ENDPOINT = "http://api.amped.cc/api/jobs/?step=TRANSCRIBE"
+MAX_ITEMS = 5
 
 class LambdaUtils(object):
     """
@@ -13,10 +19,14 @@ class LambdaUtils(object):
     """
     def __init__(self,api_auth={"Authorization":"Token 764aab954fdc86cadb3b4cbd2b9f6f48339e6566"}):
         self.client = aws.AWSClient()
+        self.processor = Process.Processor(self.client)
         self.api_auth = api_auth
+        self.jobs_endpoint = JOBS_ENDPOINT
+        self.transcribe_jobs_endpoint = TRANSCRIBE_JOBS_ENDPOINT
+        self.job_names_to_comprehend = self.get_job_names_to_comprehend()
         
 
-    def get_item_set(self,jobName):
+    def get_item_set(self,job_name):
         """Gets a set of items related to a particular Transcribe job.
         
         Pulls transcription result from AWS console and extracts the text transcript. 
@@ -27,27 +37,24 @@ class LambdaUtils(object):
             A list of named tuples, each of which containing a key phrase, a list of items from Amazon Marketplace,
         and a list of timestamps of when the keyphrase was mentioned in the audio file.
         """
-        jobEndpoint = "http://api.amped.cc/api/jobs/" + str(jobName) + "/"
-        result = requests.get(jobEndpoint, headers=self.api_auth)
-        jobJSON = result.json()
-        #jobStatus = jobJSON['step']
-        jobCategory = jobJSON['category']
-        print("Found category (SearchIndex): ", jobCategory)
-        #print("Status of job {}: {}".format(jobName, jobStatus))
+        job_endpoint = "{}{}/".format(self.jobs_endpoint,str(job_name))
+        result = requests.get(job_endpoint, headers=self.api_auth)
+        job_json = result.json()
+        job_category = job_json['category']
+        print("Found category (SearchIndex): ", job_category)
 
-        recentJob = self.client.transcribe_client.get_transcription_job(TranscriptionJobName=jobName)
+        recent_job = self.client.transcribe_client.get_transcription_job(
+            TranscriptionJobName=job_name)
+        transcribe_result_url = recent_job['TranscriptionJob']['Transcript']['TranscriptFileUri']
+        transcribe_response = requests.get(transcribe_result_url)
+        transcribe_json_string = transcribe_response.content.decode('utf8')
+        transcribe_json = json.loads(transcribe_json_string)
+        #TODO move the above 5 lines into function get_transcript_text
+        transcript_text = self.get_transcript_text(job_name)
+        #print(transcript_text)
 
-        transcribe_result_URL = recentJob['TranscriptionJob']['Transcript']['TranscriptFileUri']
-        transcribe_response = requests.get(transcribe_result_URL)
-        transcribe_JSON_string = transcribe_response.content.decode('utf8')
-        transcribe_JSON = json.loads(transcribe_JSON_string)
-
-        text = transcribe_JSON['results']['transcripts'][0]['transcript']
-        #print(text)
-
-        processor = Process.Processor(self.client)
-        items = processor.process(category=jobCategory,text=text)
-        processor.extract_timestamps(transcribe_dicts=transcribe_JSON['results']['items'],items=items)
+        items = self.processor.process(category=job_category, text=transcript_text)
+        self.processor.extract_timestamps(transcribe_dicts=transcribe_json['results']['items'],items=items)
 
         return items
 
@@ -55,61 +62,57 @@ class LambdaUtils(object):
     def post_item_sets_all_jobs(self):
         """Posts results of ItemSearch to our Django framework API endpoint.
 
+        Builds a dictionary containing all relevant information 
+        for products related to a particular Transcribe job.
+        This dictionary uses key phrases (search terms) for keys, 
+        and maps each to a list of items and a list of timestamps for this key phrase.
+        For each key phrase which has been determined to be significantly relevant, 
+        we extract relevant attributes from the associated items
 
-        """
-
-        def post_item_set(kw_items_pairs, jobName):
-            """
-            Arguments:
-            kw_items_pair: a list of named tuples with parameters keyword and a list of items
-            """		
-            newItemSet = {}
-            for kw_items in kw_items_pairs:
-
-                newItemSet[kw_items.keyword] = {}
-                newItemSet[kw_items.keyword]["items"] = []
-                newItemSet[kw_items.keyword]["timestamps"] = kw_items.timestamps
-
-                for i, item in enumerate(kw_items.items):
-                    if i > 5:
-                        break
-                    itemData = {}
-                    try:
-                        print(item.title)
-                        itemData['title'] = str(item.title)
-                        itemData['price'] = str(item.formatted_price)
-                        itemData['brand'] = str(item.brand)
-                        itemData['asin'] = str(item.asin)
-                        itemData['url'] = str(item.offer_url)
-                        itemData['image_url'] = str(item.images[0].LargeImage.URL)
-                        itemData['description'] = str(item.editorial_review)
-                        itemData['images'] = list(set(map(lambda _: str(_.LargeImage.URL), item.images)))
-                    except:
-                        pass
-                    newItemSet[kw_items.keyword]["items"].append(itemData)
-
-
-            payload = {"products" : json.dumps(newItemSet), "step": "FINISHED"}
-
-            pprint("Payload: ")
-            pprint(payload)
-
-            result = requests.put("http://api.amped.cc/api/jobs/" + jobName + "/", data=payload, headers=self.api_auth)
-            print("Status code for put request: " + str(result.status_code))
+        """ 
         
-        
-        print("Getting jobs not comprehended...")
-        jobNames = self.get_completed_jobs_not_comprehended()
-        print(jobNames)
-        for jobName in jobNames:
-            items = self.get_item_set(jobName)
+        for job_name in self.job_names_to_comprehend:
+            items = self.get_item_set(job_name)
             assert items, "No items were returned"
-            post_item_set(items, jobName)
+            #post_item_set(items, job_name)
+            self.post_item_set(items, job_name)
 
 
+    def post_item_set(self, kw_items_pairs, job_name):
+        """
+        Arguments:
+        kw_items_pair: a list of named tuples with parameters keyword and a list of items
+        """
+        new_item_set = []
+        for kw_items in kw_items_pairs:
 
+            key_phrase_result = {}
+            key_phrase_result['key_phrase'] = kw_items.keyword
+            key_phrase_result['items'] = []
+            key_phrase_result['timestamps'] = []
 
-    def get_completed_jobs_not_comprehended(self):
+            items = list(itertools.islice(kw_items.items, 5))
+            wrapped_items = [ItemWrapper.ItemWebData(item) for item in items]
+
+            for wrapped_item in wrapped_items:
+                key_phrase_result['items'].append(wrapped_item.dict)
+
+            new_item_set.append(key_phrase_result)
+
+        payload = {"products": json.dumps(new_item_set), "step": "FINISHED"}
+
+        pprint("Payload: ")
+        pprint(payload)
+
+        response = requests.put(
+            "{}{}/".format(self.jobs_endpoint, job_name), data=payload, headers=self.api_auth)
+
+        print("Status code for put request: {} (LambdaUtils.post_item_set())".format(
+            str(response.status_code)))
+
+	
+
+    def get_job_names_to_comprehend(self):
         """Gets the names of all jobs which are currently being Transcribed or waiting to be passed to AWS Comprehend.
 
         Retrieves the names of jobs which are currently waiting to be passed to AWS Comprehend
@@ -122,19 +125,35 @@ class LambdaUtils(object):
             '097c10d9-cb1f-439b-a90e-60da4afe4280', 
             'be4c2053-ee2d-4675-8caf-f4f7d308292d']
         """
-        jobEndpoint = "http://api.amped.cc/api/jobs/?step=TRANSCRIBE"
-        result = requests.get(jobEndpoint, headers=self.api_auth)
-        jobs = result.json()
+        jobs_to_comprehend_response = requests.get(
+            self.transcribe_jobs_endpoint, headers=self.api_auth)
+        jobs_to_comprehend_list = jobs_to_comprehend_response.json()
 
-        completedJobsNotComprehendedNames = []
-        for job in jobs:
+        job_names_to_comprehend = []
+        for job_object in jobs_to_comprehend_list:
             try:
-                jobName = job['job_id']
-                status = self.client.transcribe_client.get_transcription_job(TranscriptionJobName=jobName)['TranscriptionJob']['TranscriptionJobStatus']
+                job_name = job_object['job_id']
+                status = self.client.transcribe_client.get_transcription_job(
+                    TranscriptionJobName=job_name)['TranscriptionJob']['TranscriptionJobStatus']
                 if(status == "COMPLETED"):
-                    completedJobsNotComprehendedNames.append(jobName)
+                    job_names_to_comprehend.append(job_name)
+                else:
+                    print("Job {} is still in the process of transcribing speech to text.".format(job_name))
             except:
-                pass
+                print("Error in json formatting of job (LambdaUtils.get_job_names_to_comprehend()).")
 
-        return completedJobsNotComprehendedNames
-	
+        return job_names_to_comprehend
+
+
+
+    def get_transcript_text(self, job_name):
+        recent_job = self.client.transcribe_client.get_transcription_job(
+            TranscriptionJobName=job_name)
+
+        transcribe_result_url = recent_job['TranscriptionJob']['Transcript']['TranscriptFileUri']
+        transcribe_response = requests.get(transcribe_result_url)
+        transcribe_json_string = transcribe_response.content.decode('utf8')
+        transcribe_json = json.loads(transcribe_json_string)
+        transcript_text = transcribe_json['results']['transcripts'][0]['transcript']
+
+        return transcript_text
