@@ -86,10 +86,13 @@ class LambdaUtils(object):
         new_item_set = []
         for kw_items in kw_items_pairs:
 
+            if not kw_items.timestamps:
+                continue
+
             key_phrase_result = {}
             key_phrase_result['key_phrase'] = kw_items.keyword
             key_phrase_result['items'] = []
-            key_phrase_result['timestamps'] = []
+            key_phrase_result['timestamps'] = kw_items.timestamps
 
             items = list(itertools.islice(kw_items.items, 5))
             wrapped_items = [ItemWrapper.ItemWebData(item) for item in items]

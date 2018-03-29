@@ -20,20 +20,28 @@ class Processor(object):
         then updates each named tuple with the appropriate timestamp mappings.
         """
         timestamp_mappings = {}
-        for word_dict in transcribe_dicts:
+        for i, word_dict in enumerate(transcribe_dicts):
             if word_dict['type'] == "punctuation":
                 continue
-            pprint("word dict: {}".format(word_dict))
-            timestamp_mappings.setdefault(word_dict['alternatives'][0]['content'], []).append(word_dict['start_time'])
+            word = word_dict['alternatives'][0]['content']
+            #pprint("word dict: {}".format(word_dict))
+            timestamp_mappings.setdefault(word, {'timestamps':[],'indicies':[]})
+            timestamp_mappings[word]['timestamps'].append(word_dict['start_time'])
+            timestamp_mappings[word]['indicies'].append(int(i))
         pprint("Timestamp mappings from Transcribe result: {}".format(timestamp_mappings))
-        #pprint("items before timestamp extraction: ")
-        #pprint(items)
-        pprint("-----------------------------------")
         for item in items:
-            keyword = item.keyword.strip().split()[0] #TODO This is only pulling the FIRST word in the keywords used
-            print("Looking for keyword: ", keyword)
-            if keyword in timestamp_mappings:
-                item.timestamps.extend(timestamp_mappings[keyword])
+            key_phrase_tokens = item.keyword.strip().split() 
+            #print("Looking for key_phrase_tokens: ", key_phrase_tokens)
+            if key_phrase_tokens[0] in timestamp_mappings:
+
+                for i, token in enumerate(key_phrase_tokens[:-1]):
+                    for index in timestamp_mappings[token]['indicies']:
+                        #print("Current word: {}   Next word: {}".format(key_phrase_tokens[i], key_phrase_tokens[i+1]))
+                        #print("Next word indicies: {}".format(timestamp_mappings[key_phrase_tokens[i+1]]['indicies']))
+                        if key_phrase_tokens[i+1] in timestamp_mappings and index + 1 not in timestamp_mappings[key_phrase_tokens[i+1]]['indicies']:
+                            continue
+
+                item.timestamps.extend(timestamp_mappings[key_phrase_tokens[0]]['timestamps'])
                     
         pprint("items after timestamp extraction: ")
         pprint(items)
@@ -46,11 +54,9 @@ class Processor(object):
 
         Returns: list of amazon item objects
         """
-        n = 500
+        n = 4000
         chunks = [text[i:i+n] for i in range(0, len(text), n)]
-        #pprint(text)
         #chunks = text.split('.')
-        pprint(chunks)
         c = comprehender.Comprehender()
 
         kp = list(itertools.chain.from_iterable([c.comprehend_key_phrases(chunk) for chunk in chunks]))
