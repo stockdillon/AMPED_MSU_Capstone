@@ -12,11 +12,11 @@ class ItemWebData(object):
         self.url = str(item.offer_url)
         #self.description = item.description        
         self.parsed_response = item.parsed_response
-        self.has_reviews = bool(item.parsed_response.CustomerReviews['HasReviews'])
+        #self.has_reviews = bool(item.parsed_response.CustomerReviews['HasReviews'])
         self.reviews_url = None
         self.rating = 0.0
         self.review_count = int(0)
-        self.retrieve_web_data()
+        #self.retrieve_web_data()
         try:
             self.sales_rank = int(self.parsed_response.SalesRank)
         except:
@@ -24,6 +24,7 @@ class ItemWebData(object):
         self.is_adult = str(item.is_adult)
         self.availability = str(item.availability_type)
         
+    """
     def retrieve_web_data(self):        
         if self.has_reviews:
             self.reviews_url = str(self.parsed_response.CustomerReviews['IFrameURL'])
@@ -37,6 +38,7 @@ class ItemWebData(object):
             return True
         else:
             return False
+    """
     
     def get_rating(self, soup):
         #print(self.reviews_url)

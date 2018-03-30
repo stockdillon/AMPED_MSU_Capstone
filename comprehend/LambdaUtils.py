@@ -52,6 +52,7 @@ class LambdaUtils(object):
         transcript_text = self.get_transcript_text(job_name)
 
         items = self.processor.process(category=job_category, text=transcript_text)
+        print('items:', items,job_category)
         self.processor.extract_timestamps(transcribe_dicts=transcribe_json['results']['items'],items=items)
 
         return items
@@ -96,6 +97,10 @@ class LambdaUtils(object):
 
         payload = {"products": json.dumps(new_item_set), "step": "FINISHED"}
         print(payload)
+
+        response = requests.get("{}{}/".format(self.jobs_endpoint, job_name))
+        audio_file = response.json()['audio_file']
+        payload['audio_file'] = audio_file
 
         response = requests.put(
             "{}{}/".format(self.jobs_endpoint, job_name), data=payload, headers=self.api_auth)
