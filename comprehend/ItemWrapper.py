@@ -10,7 +10,7 @@ class ItemWebData(object):
         self.asin = str(item.asin)
         self.images = list(set(map(lambda _: str(_.LargeImage.URL), item.images)))
         self.url = str(item.offer_url)
-        #self.description = item.description        
+        self.description = item.editorial_review        
         self.parsed_response = item.parsed_response
         #self.has_reviews = bool(item.parsed_response.CustomerReviews['HasReviews'])
         self.reviews_url = None
@@ -67,6 +67,7 @@ class ItemWebData(object):
             'images': self.images,
             'url': self.url,
             #'has_reviews': self.has_reviews,
+            'description': self.description,
             'reviews_url': self.reviews_url,
             'rating': self.rating,
             'review_count': self.review_count,
