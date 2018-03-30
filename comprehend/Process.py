@@ -60,6 +60,7 @@ class Processor(object):
         c = comprehender.Comprehender()
         kp = c.comprehend_key_phrases(text)
         ent = c.comprehend_entities(text)
+
         item_searcher = ItemSearch.ItemSearch(category,ent,kp)
         return item_searcher.search()
 
