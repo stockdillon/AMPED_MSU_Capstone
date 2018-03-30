@@ -8,7 +8,7 @@ class ItemSearch(object):
         self.key_phrases = key_phrases
         self.client = aws.AWSClient()
         self.keywords = []
-        self.ignore = ['the','each','or','a','its','last',]
+        self.ignore = ['the','each','or','a','its','last','top']
 
     def join_entities(self):
         """Union the words from entities
@@ -29,6 +29,14 @@ class ItemSearch(object):
             key_phrase.count += count
         self.key_phrases.sort(key=lambda x: x.count, reverse=True)
         self.key_phrases = self.key_phrases[:5]
+    
+    def clean(self):
+        for kp in self.key_phrases:
+            t = kp.text.split()
+            for ignore in self.ignore:
+                if ignore in t:
+                    t.remove(ignore)
+            kp.text = ' '.join(t)
 
     def naive_parse(self,count_threshold=1):
         """
@@ -55,6 +63,7 @@ class ItemSearch(object):
         """
         kw_item_pair = namedtuple('KeywordItemsMapping',['keyword','items','timestamps'])
         self.join_entities()
+        self.clean()
         self.naive_parse()
         items = []
         for kw in self.keywords:
