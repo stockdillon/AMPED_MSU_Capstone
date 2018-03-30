@@ -15,17 +15,18 @@ class ItemWebData(object):
         self.has_reviews = bool(item.parsed_response.CustomerReviews['HasReviews'])
         self.reviews_url = None
         self.rating = 0.0
-        self.review_count = 0
+        self.review_count = int(0)
+        self.retrieve_web_data()
         try:
             self.sales_rank = int(self.parsed_response.SalesRank)
         except:
             self.sales_rank = None
-        self.is_adult = item.is_adult
-        self.availability = item.availability_type
+        self.is_adult = str(item.is_adult)
+        self.availability = str(item.availability_type)
         
     def retrieve_web_data(self):        
         if self.has_reviews:
-            self.reviews_url = self.parsed_response.CustomerReviews['IFrameURL']
+            self.reviews_url = str(self.parsed_response.CustomerReviews['IFrameURL'])
             response = requests.get(self.reviews_url)
             if not response.ok:
                 return False
@@ -38,7 +39,7 @@ class ItemWebData(object):
             return False
     
     def get_rating(self, soup):
-        print(self.reviews_url)
+        #print(self.reviews_url)
         ratings = [float(_.text.strip('%')) for _ in soup.find_all('div', {'class': 'histoCount'})]
         stars = 0.0
         for i, percentage in enumerate(ratings):
@@ -50,8 +51,9 @@ class ItemWebData(object):
         review_count = review_count.text if review_count else 0
         #review_count.strip()
         #review_count = review_count[:review_count.index("Reviews") - 1]
-        print("Review count: {}".format(review_count))
-        return 0
+        #print("Review count: {}".format(review_count.strip().split()[0]))
+        review_count = review_count.strip().split()[0].replace(',', '')
+        return int(review_count)
     
     @property
     def dict(self):

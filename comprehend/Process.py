@@ -3,6 +3,10 @@ import ItemSearch
 from pprint import pprint
 import itertools
 
+
+class DeterminantFoundContinue(Exception):
+    pass
+
 class Processor(object):
     """
     """
@@ -24,28 +28,27 @@ class Processor(object):
             if word_dict['type'] == "punctuation":
                 continue
             word = word_dict['alternatives'][0]['content']
-            #pprint("word dict: {}".format(word_dict))
-            timestamp_mappings.setdefault(word, {'timestamps':[],'indicies':[]})
+            timestamp_mappings.setdefault(word, {'timestamps':[],'indices':[]})
             timestamp_mappings[word]['timestamps'].append(word_dict['start_time'])
-            timestamp_mappings[word]['indicies'].append(int(i))
-        pprint("Timestamp mappings from Transcribe result: {}".format(timestamp_mappings))
+            timestamp_mappings[word]['indices'].append(int(i))
+        #pprint("Timestamp mappings from Transcribe result: {}".format(timestamp_mappings))
         for item in items:
             key_phrase_tokens = item.keyword.strip().split() 
-            #print("Looking for key_phrase_tokens: ", key_phrase_tokens)
             if key_phrase_tokens[0] in timestamp_mappings:
 
+                break_ = False
                 for i, token in enumerate(key_phrase_tokens[:-1]):
-                    for index in timestamp_mappings[token]['indicies']:
-                        #print("Current word: {}   Next word: {}".format(key_phrase_tokens[i], key_phrase_tokens[i+1]))
-                        #print("Next word indicies: {}".format(timestamp_mappings[key_phrase_tokens[i+1]]['indicies']))
-                        if key_phrase_tokens[i+1] in timestamp_mappings and index + 1 not in timestamp_mappings[key_phrase_tokens[i+1]]['indicies']:
-                            continue
+                    for index in timestamp_mappings[token]['indices']:
+                        if key_phrase_tokens[i+1] in timestamp_mappings and index + 1 not in timestamp_mappings[key_phrase_tokens[i+1]]['indices']:
+                            break_ = True
+                            break
+                    if break_:
+                        break
+                if break_:
+                    continue
 
-                item.timestamps.extend(timestamp_mappings[key_phrase_tokens[0]]['timestamps'])
-                    
-        #pprint("items after timestamp extraction: ")
-        #pprint(items)
-        return
+                item.timestamps.extend(float(tstamp) for tstamp in timestamp_mappings[key_phrase_tokens[0]]['timestamps'])
+        return True
 
     def process(self,category,text):
         """takes in podcast text and pipelines it through the 
@@ -54,16 +57,9 @@ class Processor(object):
 
         Returns: list of amazon item objects
         """
-        n = 4000
-        chunks = [text[i:i+n] for i in range(0, len(text), n)]
-        #chunks = text.split('.')
         c = comprehender.Comprehender()
-
-        kp = list(itertools.chain.from_iterable([c.comprehend_key_phrases(chunk) for chunk in chunks]))
-        ent = list(itertools.chain.from_iterable([c.comprehend_entities(chunk) for chunk in chunks]))
-        print("Entities: {}".format(ent))
-        ent = dict.fromkeys(ent, list())
-
+        kp = c.comprehend_key_phrases(text)
+        ent = c.comprehend_entities(text)
         item_searcher = ItemSearch.ItemSearch(category,ent,kp)
         return item_searcher.search()
 

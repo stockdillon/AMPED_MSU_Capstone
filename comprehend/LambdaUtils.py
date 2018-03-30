@@ -41,7 +41,6 @@ class LambdaUtils(object):
         result = requests.get(job_endpoint, headers=self.api_auth)
         job_json = result.json()
         job_category = job_json['category']
-        print("Found category (SearchIndex): ", job_category)
 
         recent_job = self.client.transcribe_client.get_transcription_job(
             TranscriptionJobName=job_name)
@@ -51,7 +50,6 @@ class LambdaUtils(object):
         transcribe_json = json.loads(transcribe_json_string)
         #TODO move the above 5 lines into function get_transcript_text
         transcript_text = self.get_transcript_text(job_name)
-        #print(transcript_text)
 
         items = self.processor.process(category=job_category, text=transcript_text)
         self.processor.extract_timestamps(transcribe_dicts=transcribe_json['results']['items'],items=items)
@@ -74,7 +72,6 @@ class LambdaUtils(object):
         for job_name in self.job_names_to_comprehend:
             items = self.get_item_set(job_name)
             assert items, "No items were returned"
-            #post_item_set(items, job_name)
             self.post_item_set(items, job_name)
 
 
@@ -83,6 +80,7 @@ class LambdaUtils(object):
         Arguments:
         kw_items_pair: a list of named tuples with parameters keyword and a list of items
         """
+        #print("kw item pairs: {}".format(kw_items_pairs))
         new_item_set = []
         for kw_items in kw_items_pairs:
 
@@ -91,24 +89,13 @@ class LambdaUtils(object):
 
             key_phrase_result = {}
             key_phrase_result['key_phrase'] = kw_items.keyword
-            #key_phrase_result['items'] = []
-            key_phrase_result['items'] = [ItemWrapper.ItemWebData(item).dict for item in list(itertools.islice(kw_items.items, 5)) if self.is_relevant(item)]
+            key_phrase_result['items'] = [ItemWrapper.ItemWebData(item).dict for item in list(itertools.islice(kw_items.items, 3)) if self.is_relevant(item)]  
             key_phrase_result['timestamps'] = kw_items.timestamps
-
-            """
-            items = list(itertools.islice(kw_items.items, 5))
-            wrapped_items = [ItemWrapper.ItemWebData(item) for item in items]
-
-            for wrapped_item in wrapped_items:
-                key_phrase_result['items'].append(wrapped_item.dict)
-            """
-
+            #debug-here
             new_item_set.append(key_phrase_result)
 
         payload = {"products": json.dumps(new_item_set), "step": "FINISHED"}
-
-        pprint("Payload: ")
-        pprint(payload)
+        print(payload)
 
         response = requests.put(
             "{}{}/".format(self.jobs_endpoint, job_name), data=payload, headers=self.api_auth)
@@ -136,7 +123,7 @@ class LambdaUtils(object):
         jobs_to_comprehend_list = jobs_to_comprehend_response.json()
 
         job_names_to_comprehend = []
-        for job_object in jobs_to_comprehend_list:
+        for job_object in jobs_to_comprehend_list['results']:
             try:
                 job_name = job_object['job_id']
                 status = self.client.transcribe_client.get_transcription_job(
@@ -166,4 +153,10 @@ class LambdaUtils(object):
 
 
     def is_relevant(self, item):
+        """
+        TODO: Evaluate the relevance of an item based on rank, review_count, price, rating, etc.
+        
+        Returns:
+            Bool, whether or not the item is relevant
+        """
         return True

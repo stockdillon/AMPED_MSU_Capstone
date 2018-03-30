@@ -1,8 +1,5 @@
 import aws_wrapper as aws
 from collections import namedtuple
-
-MAX_KEY_PHRASES = 5
-
 class ItemSearch(object):
 
     def __init__(self,category=None,entities=None,key_phrases=None):
@@ -16,19 +13,14 @@ class ItemSearch(object):
         """
         """
         keywords = []
-        # ????????????????????????????????????????????????
-        # I DON'T UNDERSTAND?
-        # ????????????????????????????????????????????????
-        # comm_products = self.entities['COMMERCIAL_ITEM']
-        # for i in comm_products:
-        #     keywords.append(i)
+        for ent in self.entities['COMMERCIAL_ITEM']:
+            keywords.append(ent)
         for kp in self.key_phrases:
             if kp.count >= count_threshold:
                 keywords.append(kp)
             else:
                 break
         self.keywords = keywords
-        print("Keywords returned: {}".format(keywords))
         return keywords
         
     def search(self):
@@ -40,7 +32,7 @@ class ItemSearch(object):
         items = []
         for kw in self.keywords:
             try:
-                res_items = self.client.search_n(kw.text,self.category,5)
+                res_items = self.client.search_n(kw.text,self.category,1)
                 items.append(kw_item_pair(kw.text,res_items,[]))
             except:
                 pass

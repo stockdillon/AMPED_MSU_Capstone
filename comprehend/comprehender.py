@@ -12,15 +12,21 @@ class Comprehender(object):
         self.client = client
         self.deserializer = ds.Deserializer()
 
+    def chunk_text(self,text,n=4000):
+        """chunks text into sizes of n
+        """
+        return [text[i:i+n] for i in range(0, len(text), n)]
+
     def comprehend_entities(self,text):
         """
         """
-        response = self.client.comprehend_entities(text)
-        self.entities = self.deserializer.deserialize_entities(response)
+        chunks = self.chunk_text(text,4000)
+        responses = [self.client.comprehend_entities(chunk) for chunk in chunks][0]
+        self.entities = self.deserializer.deserialize_entities(responses)
         return self.entities
 
     def comprehend_key_phrases(self,text):
-        """  
+        """        
         sentiment_object = self.client.comprehend_sentiment(text)
         if sentiment_object['Sentiment'] == "NEGATIVE":
             print("{} has a negative sentiment\n\n\n\n".format(text))
@@ -28,8 +34,9 @@ class Comprehender(object):
         else:
             print("{} has a positive or neutral sentiment\n\n\n\n".format(text))
         """
-        response = self.client.comprehend_key_phrases(text)
-        self.key_phrases = self.deserializer.deserialize_key_phrases(response['KeyPhrases'])
+        chunks = self.chunk_text(text, 4000)
+        responses = [self.client.comprehend_key_phrases(chunk)['KeyPhrases'] for chunk in chunks][0]
+        self.key_phrases = self.deserializer.deserialize_key_phrases(responses)
         return self.key_phrases
 
 """
