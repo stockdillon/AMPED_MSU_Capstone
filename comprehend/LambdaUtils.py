@@ -91,14 +91,17 @@ class LambdaUtils(object):
 
             key_phrase_result = {}
             key_phrase_result['key_phrase'] = kw_items.keyword
-            key_phrase_result['items'] = []
+            #key_phrase_result['items'] = []
+            key_phrase_result['items'] = [ItemWrapper.ItemWebData(item).dict for item in list(itertools.islice(kw_items.items, 5)) if self.is_relevant(item)]
             key_phrase_result['timestamps'] = kw_items.timestamps
 
+            """
             items = list(itertools.islice(kw_items.items, 5))
             wrapped_items = [ItemWrapper.ItemWebData(item) for item in items]
 
             for wrapped_item in wrapped_items:
                 key_phrase_result['items'].append(wrapped_item.dict)
+            """
 
             new_item_set.append(key_phrase_result)
 
@@ -160,3 +163,7 @@ class LambdaUtils(object):
         transcript_text = transcribe_json['results']['transcripts'][0]['transcript']
 
         return transcript_text
+
+
+    def is_relevant(self, item):
+        return True

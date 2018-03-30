@@ -43,8 +43,8 @@ class Processor(object):
 
                 item.timestamps.extend(timestamp_mappings[key_phrase_tokens[0]]['timestamps'])
                     
-        pprint("items after timestamp extraction: ")
-        pprint(items)
+        #pprint("items after timestamp extraction: ")
+        #pprint(items)
         return
 
     def process(self,category,text):
