@@ -1,7 +1,8 @@
+import itertools
+from pprint import pprint
+
 import comprehender
 import ItemSearch
-from pprint import pprint
-import itertools
 
 
 class DeterminantFoundContinue(Exception):
@@ -31,23 +32,23 @@ class Processor(object):
             timestamp_mappings.setdefault(word, {'timestamps':[],'indices':[]})
             timestamp_mappings[word]['timestamps'].append(word_dict['start_time'])
             timestamp_mappings[word]['indices'].append(int(i))
-        #pprint("Timestamp mappings from Transcribe result: {}".format(timestamp_mappings))
+        pprint("Timestamp mappings from Transcribe result: ")
+        #for w,t in timestamp_mappings.items():
+            #print(w,t)
         for item in items:
             key_phrase_tokens = item.keyword.strip().split() 
             if key_phrase_tokens[0] in timestamp_mappings:
-
-                break_ = False
-                for i, token in enumerate(key_phrase_tokens[:-1]):
-                    for index in timestamp_mappings[token]['indices']:
-                        if key_phrase_tokens[i+1] in timestamp_mappings and index + 1 not in timestamp_mappings[key_phrase_tokens[i+1]]['indices']:
-                            break_ = True
+                
+                first_word_data = timestamp_mappings[key_phrase_tokens[0]]
+                for i, first_word_index in enumerate(first_word_data['indices']):
+                    phrase_timestamp = first_word_data['timestamps'][i]
+                    for offset_in_phrase,token in enumerate(key_phrase_tokens[1:-1]):
+                        if first_word_index + offset_in_phrase + 1 not in timestamp_mappings[token]['indices']:
+                            #print("{} not found in {}".format(first_word_index+offset_in_phrase, timestamp_mappings[token]['indices']))
                             break
-                    if break_:
-                        break
-                if break_:
-                    continue
 
-                item.timestamps.extend(float(tstamp) for tstamp in timestamp_mappings[key_phrase_tokens[0]]['timestamps'])
+                    else:
+                        item.timestamps.append(float(phrase_timestamp))
         return True
 
     def process(self,category,text):
@@ -63,6 +64,3 @@ class Processor(object):
 
         item_searcher = ItemSearch.ItemSearch(category,ent,kp)
         return item_searcher.search()
-
-    
-
