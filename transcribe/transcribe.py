@@ -19,7 +19,8 @@ def lambda_handler(event, context):
        TranscriptionJobName=job_id,
        Media={'MediaFileUri': job_uri},
        MediaFormat=extension,
-       LanguageCode='en-US'
+       LanguageCode='en-US',
+       Settings={'VocabularyName': 'tech'}
     )
 
     print("job_id: ", job_id)
