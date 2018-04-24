@@ -41,6 +41,7 @@ class ComprehendTextResponse(ComprehendResponse):
         self.add_offset(begin_offset,end_offset)
         self.add_score(score)
         self.timestamps = []
+        self.sentiment = None
 
     def inc(self):
         self.count += 1
@@ -62,8 +63,8 @@ class ComprehendKeyPhrase(ComprehendTextResponse):
         super(ComprehendKeyPhrase,self).__init__(text,score,begin_offset,end_offset,'Comprehend Key Phrase')
 
     def __repr__(self):
-        return ('Comprehend Key Phrase: Text: {}  Score:  {}  Count: {}  Offsets:  {}'.format(
-            self.text,self.scores,self.count,self.offsets))
+        return ('Comprehend Key Phrase: Text: {}  Score:  {}  Count: {}  Offsets:  {}  Timestamps: {}  Sentiment: {}  Count: {}'.format(
+            self.text,self.scores,self.count,self.offsets,self.timestamps,self.sentiment,self.count))
     
 class ComprehendEntity(ComprehendTextResponse):
     """
@@ -74,8 +75,8 @@ class ComprehendEntity(ComprehendTextResponse):
         self.type = _type
         
     def __repr__(self):
-        return ('Comprehend Entity: Type:  {}  Text: {}  Scores:  {} Count: {} Offsets:  {} Timestamps:  {}'.format(
-            self.type,self.text,self.scores,self.count,self.offsets,self.timestamps))
+        return ('Comprehend Entity: Type:  {}  Text: {}  Scores:  {} Count: {} Offsets:  {} Timestamps:  {}  Sentiment: {}  Count: {}'.format(
+            self.type,self.text,self.scores,self.count,self.offsets,self.timestamps,self.sentiment,self.count))
 
         
     class EntityType(enum.Enum):
@@ -107,18 +108,17 @@ def key_phrase_hook_handler(json):
                             end_offset=json['EndOffset'])
 
 
-
 class Deserializer(object):
     """
     Deserializes the data provided by Amazon's comprehend engine
     """
 
-    ENTITY_TYPES = ['COMMERCIAL_ITEM', 'DATE', 'EVENT', 'LOCATION','ORGANIZATION','OTHER','PERSON','QUANTITY','TITLE']
+    ENTITY_TYPES = ['COMMERCIAL_ITEM', 'DATE', 'EVENT', 'LOCATION',
+                    'ORGANIZATION', 'OTHER', 'PERSON', 'QUANTITY', 'TITLE']
 
     def __init__(self,): pass
 
-
-    def parse_dicts(self,data,hook_handler):
+    def parse_dicts(self, data, hook_handler):
         """Parses json objects into a list of entities given a hook handler,
 
         Args:
@@ -132,21 +132,21 @@ class Deserializer(object):
                 temp_kp = parsed[text]
                 temp_kp.inc()
                 temp_kp.add_score(key_phrase['Score'])
+                print(text, key_phrase['BeginOffset'], key_phrase['EndOffset'], "@@@@@@@@@@@@@@@@@")
                 temp_kp.add_offset(key_phrase['BeginOffset'],
-                                    key_phrase['EndOffset'])
+                                   key_phrase['EndOffset'])
             else:
                 parsed[text] = hook_handler(key_phrase)
-                
+
         parsed = [v for v in parsed.values()]
 
         return parsed
 
-    
-    def deserialize_entities(self,data):
+    def deserialize_entities(self, entities):
         """deserializes the input data into the format {'entity_type' : [entities]}
 
         Args:
-            data: data comes in th form of  a Amazon Comprehend JSON response
+            data: data comes in the form of an Amazon Comprehend JSON response
                 {
                     "Entities": [
                         {
@@ -162,21 +162,19 @@ class Deserializer(object):
         Returns:
         
         """
-        entities = data['Entities']
-        entities_type_sorted = {key:[] for key in self.ENTITY_TYPES}
+        entities_type_sorted = {key: [] for key in self.ENTITY_TYPES}
         for e in entities:
             entities_type_sorted[e['Type']].append(e)
 
-        for k,v in entities_type_sorted.items():
-            entities_type_sorted[k] = self.parse_dicts(v,entity_hook_handler)
+        for k, v in entities_type_sorted.items():
+            entities_type_sorted[k] = self.parse_dicts(v, entity_hook_handler)
 
         return entities_type_sorted
 
-    
-    def deserialize_key_phrases(self,data):
+    def deserialize_key_phrases(self, key_phrases):
         """Deserlializes key phrase entities and returns a list of them ordered by count desc [ComprehendResponse,]
         """
-        parsed = self.parse_dicts(data,key_phrase_hook_handler)
+        parsed = self.parse_dicts(key_phrases, key_phrase_hook_handler)
         parsed.sort(key=lambda x: x.count, reverse=True)
         return parsed
 

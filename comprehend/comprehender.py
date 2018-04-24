@@ -1,5 +1,9 @@
 import aws_wrapper as aws
 import deserializer as ds
+import itertools
+
+from pprint import pprint
+
 class Comprehender(object):
     """
     Channels a document through amazon comprehend,
@@ -17,46 +21,35 @@ class Comprehender(object):
         """
         return [text[i:i+n] for i in range(0, len(text), n)]
 
-    def comprehend_entities(self,text):
-        """
-        """
-        chunks = self.chunk_text(text,4000)
-        responses = [self.client.comprehend_entities(chunk) for chunk in chunks][0]
-        self.entities = self.deserializer.deserialize_entities(responses)
-        return self.entities
 
-    def comprehend_key_phrases(self,text):
-        """        
+    def get_keyphrases_and_entities(self, text):
+        CHUNK_SIZE = 4500
+        chunks = self.chunk_text(text,CHUNK_SIZE)
+        entities = []
+        key_phrases = []
+        chunk_offset = 0
+
+        def add_offsets(entity_or_keyphrase_list, chunk_offset):
+            """Takes in a list of entities (or key phrases) and adds the chunk offset to all of their offsets
+            """
+            for item in entity_or_keyphrase_list:
+                item['BeginOffset'] += chunk_offset
+                item['EndOffset'] += chunk_offset
+
+        for chunk in chunks:
+            entity_response = self.client.comprehend_entities(chunk)
+            key_phrase_response = self.client.comprehend_key_phrases(chunk)
+            add_offsets(entity_response['Entities'], chunk_offset)
+            add_offsets(key_phrase_response['KeyPhrases'], chunk_offset)
+            key_phrases += key_phrase_response['KeyPhrases']
+            entities += entity_response['Entities']
+            chunk_offset += CHUNK_SIZE
+        entities = self.deserializer.deserialize_entities(entities)
+        key_phrases = self.deserializer.deserialize_key_phrases(key_phrases)
+        return key_phrases,entities
+
+
+    def comprehend_sentiment(self, text):
         sentiment_object = self.client.comprehend_sentiment(text)
-        if sentiment_object['Sentiment'] == "NEGATIVE":
-            print("{} has a negative sentiment\n\n\n\n".format(text))
-            return 
-        else:
-            print("{} has a positive or neutral sentiment\n\n\n\n".format(text))
-        """
-        chunks = self.chunk_text(text, 4000)
-        responses = [self.client.comprehend_key_phrases(chunk)['KeyPhrases'] for chunk in chunks][0]
-        self.key_phrases = self.deserializer.deserialize_key_phrases(responses)
-        return self.key_phrases
+        return sentiment_object['Sentiment']
 
-"""
-    def comprehend_sentiment(self, transcribe_word_items):
-        sentence = ""
-        for word_item in transcribe_word_items:
-            current_word = word_item['alternatives'][0]['content']
-            if word_item['type'] == 'punctuation':
-                if current_word == '.':
-                    sentence = sentence.strip() + '.'
-                    sentiment_obj = comprehend_client.detect_sentiment(
-                        Text=sentence,
-                        LanguageCode='en'
-                    )
-                    sentiment = sentiment_obj['Sentiment']
-                    sentence = ""
-                    continue
-                else:
-                    sentence = sentence.strip() + current_word + ' '
-                    continue
-            sentence += current_word + ' '
-        return
-"""

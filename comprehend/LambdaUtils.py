@@ -1,13 +1,15 @@
-import boto3
-import os
-from amazon.api import AmazonAPI
-import json
-import Process
-import aws_wrapper as aws
-import requests
 import itertools
-import ItemWrapper
+import json
+import os
 from pprint import pprint
+
+import boto3
+import requests
+from amazon.api import AmazonAPI
+
+import aws_wrapper as aws
+import ItemWrapper
+import Process
 
 JOBS_ENDPOINT = "http://api.amped.cc/api/jobs/"
 TRANSCRIBE_JOBS_ENDPOINT = "http://api.amped.cc/api/jobs/?step=TRANSCRIBE"
@@ -42,8 +44,10 @@ class LambdaUtils(object):
         job_json = result.json()
         job_category = job_json['category']
 
+
         recent_job = self.client.transcribe_client.get_transcription_job(
             TranscriptionJobName=job_name)
+        self.transcribe_result_url = recent_job['TranscriptionJob']['Transcript']['TranscriptFileUri']
         transcribe_result_url = recent_job['TranscriptionJob']['Transcript']['TranscriptFileUri']
         transcribe_response = requests.get(transcribe_result_url)
         transcribe_json_string = transcribe_response.content.decode('utf8')
@@ -51,9 +55,11 @@ class LambdaUtils(object):
         #TODO move the above 5 lines into function get_transcript_text
         transcript_text = self.get_transcript_text(job_name)
 
-        items = self.processor.process(category=job_category, text=transcript_text)
-        self.processor.extract_timestamps(transcribe_dicts=transcribe_json['results']['items'],items=items)
 
+        items = self.processor.process(category=job_category, transcript_text=transcript_text, transcribe_dicts=transcribe_json['results']['items'])
+        #self.processor.extract_timestamps(transcribe_dicts=transcribe_json['results']['items'],items=items)
+        
+        #self.transcribe_cost, self.comprehend_cost = self.processor
         return items
 
 
@@ -71,7 +77,7 @@ class LambdaUtils(object):
         
         for job_name in self.job_names_to_comprehend:
             items = self.get_item_set(job_name)
-            assert items, "No items were returned"
+            #assert items, "No items were returned for job: {}".format(job_name)
             self.post_item_set(items, job_name)
 
 
@@ -90,11 +96,16 @@ class LambdaUtils(object):
             key_phrase_result['key_phrase'] = kw_items.keyword
             key_phrase_result['items'] = [ItemWrapper.ItemWebData(item).dict for item in list(itertools.islice(kw_items.items, 3)) if self.is_relevant(item)]  
             key_phrase_result['timestamps'] = kw_items.timestamps
-            #debug-here
+            key_phrase_result['sentiment'] = kw_items.sentiment
+
             new_item_set.append(key_phrase_result)
 
-        payload = {"products": json.dumps(new_item_set), "step": "FINISHED"}
-        #print(payload)
+        payload = {"products": json.dumps(new_item_set), "step": "FINISHED", 
+                    'transcribe_cost': self.processor.transcribe_cost,
+                    'comprehend_cost': self.processor.comprehend_cost,
+                    'json_url': self.transcribe_result_url,
+                    'podcast_length': float(self.processor.transcribe_seconds)}
+
 
         response = requests.get("{}{}/".format(self.jobs_endpoint, job_name))
 
@@ -103,6 +114,7 @@ class LambdaUtils(object):
 
         print("Status code for put request: {} (LambdaUtils.post_item_set())".format(
             str(response.status_code)))
+        #print(response.text)
 
 	
 
@@ -133,8 +145,9 @@ class LambdaUtils(object):
                     job_names_to_comprehend.append(job_name)
                 else:
                     print("Job {} is still in the process of transcribing speech to text.".format(job_name))
-            except:
-                print("Error in json formatting of job (LambdaUtils.get_job_names_to_comprehend()).")
+            except Exception as e:
+                print("Error in json formatting of job {}(LambdaUtils.get_job_names_to_comprehend()).".format(job_name))
+                print(e)
 
         return job_names_to_comprehend
 

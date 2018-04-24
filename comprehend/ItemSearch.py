@@ -1,5 +1,17 @@
 import aws_wrapper as aws
 from collections import namedtuple
+
+
+class KeywordItemPair(object):
+
+    def __init__(self, keyword, items, timestamps, sentiment, count, offsets):
+        self.keyword = keyword
+        self.items = items
+        self.timestamps = timestamps
+        self.sentiment = sentiment
+        self.count = count
+        self.offsets = offsets
+
 class ItemSearch(object):
 
     def __init__(self,category=None,entities=None,key_phrases=None):
@@ -8,7 +20,7 @@ class ItemSearch(object):
         self.key_phrases = key_phrases
         self.client = aws.AWSClient()
         self.keywords = []
-        self.ignore = ['the','each','or','a','its','last','top']
+        self.ignore = ['the','these','their','this','those','each','or','a','its','last','top','his','hers','her','she','he','them','they', 'my']
 
     def join_entities(self):
         """Union the words from entities
@@ -61,19 +73,15 @@ class ItemSearch(object):
         """
         todo: naive search
         """
-        kw_item_pair = namedtuple('KeywordItemsMapping',['keyword','items','timestamps'])
         self.join_entities()
         self.clean()
         self.naive_parse()
         items = []
         for kw in self.keywords:
-            print(kw)
             try:
                 res_items = self.client.search_n(kw.text,self.category,1)
-                items.append(kw_item_pair(kw.text,res_items,[]))
+                items.append(KeywordItemPair(kw.text,res_items,[], kw.sentiment, kw.count,kw.offsets))
             except:
                 pass
-
-
         return items
         
